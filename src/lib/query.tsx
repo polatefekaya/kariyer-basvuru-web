@@ -1,7 +1,15 @@
-import { Show, type JSX } from 'solid-js'
+import { lazy, Show, type JSX } from 'solid-js'
 import { QueryClient, QueryClientProvider, type QueryKey } from '@tanstack/solid-query'
-import { SolidQueryDevtools } from '@tanstack/solid-query-devtools'
 import { ApiError } from '@/lib/api'
+
+// Dev-only and lazy: guards the import so the devtools chunk is completely excluded in production.
+const SolidQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('@tanstack/solid-query-devtools').then((m) => ({
+        default: m.SolidQueryDevtools,
+      })),
+    )
+  : () => null
 
 /**
  * One client for the app. Defaults match the React app's hooks

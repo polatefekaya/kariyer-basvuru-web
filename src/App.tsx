@@ -1,10 +1,22 @@
+import { lazy } from 'solid-js'
 import { Navigate, Route, Router } from '@solidjs/router'
 import { AppLayout } from './app/AppLayout'
-import { JobDetailPage, JobsPage } from './pages/jobs'
-import { CandidatePage, CandidatesPage } from './pages/candidates'
-import { NotFoundPage } from './pages/misc/ComingSoonPage'
-import { SiteRedirectPage } from './pages/misc/SiteRedirectPage'
 import { NEW_JOB_PATH } from './lib/site'
+
+const JobsPage = lazy(() => import('./pages/jobs/JobsPage').then((m) => ({ default: m.JobsPage })))
+const JobDetailPage = lazy(() => import('./pages/jobs/detail').then((m) => ({ default: m.JobDetailPage })))
+const CandidatesPage = lazy(() =>
+  import('./pages/candidates/CandidatesPage').then((m) => ({ default: m.CandidatesPage })),
+)
+const CandidatePage = lazy(() =>
+  import('./pages/candidates/CandidatePage').then((m) => ({ default: m.CandidatePage })),
+)
+const NotFoundPage = lazy(() =>
+  import('./pages/misc/ComingSoonPage').then((m) => ({ default: m.NotFoundPage })),
+)
+const SiteRedirectPage = lazy(() =>
+  import('./pages/misc/SiteRedirectPage').then((m) => ({ default: m.SiteRedirectPage })),
+)
 
 export default function App() {
   return (
