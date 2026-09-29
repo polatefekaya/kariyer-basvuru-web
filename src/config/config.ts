@@ -19,7 +19,7 @@ const config = {
 
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
-  AUTH_HUB_URL: import.meta.env.VITE_AUTH_HUB_URL ?? 'https://auth.kariyerzamani.com/login',
+  AUTH_HUB_URL: import.meta.env.VITE_AUTH_HUB_URL ?? 'https://kz-auth.kariyerzamani.com/login',
 
   /**
    * Serve the feature APIs from in-memory mock data instead of the backend.

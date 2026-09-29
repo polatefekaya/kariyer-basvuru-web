@@ -138,8 +138,15 @@ export function goToLogin() {
   if (!hub) return
 
   const url = new URL(hub)
+  // Ensure target path ends with /login to avoid auth hub root catch-all stripping query params
+  if (!url.pathname.endsWith('/login')) {
+    url.pathname = url.pathname.replace(/\/+$/, '') + '/login'
+  }
   url.searchParams.set('type', 'b')
-  url.searchParams.set('redirect_to', window.location.href)
+
+  // Clean return URL: strip any existing auth tokens / hash fragments before passing as redirect_to.
+  const returnUrl = window.location.origin + window.location.pathname + window.location.search
+  url.searchParams.set('redirect_to', returnUrl)
 
   window.location.assign(url.toString())
 }
