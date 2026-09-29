@@ -14,6 +14,7 @@ import {
   toast,
 } from '@/components/ui'
 import {
+  formatUserName,
   INTERVIEW_CONFIRMATION_LABELS,
   INTERVIEW_RESULT_LABELS,
   INTERVIEW_STATUS_LABELS,
@@ -104,8 +105,8 @@ function Card(props: {
         </div>
 
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span>Görüşmeyi yapan: {i().interviewer.name}</span>
-          <span>· Davet eden: {i().invitedBy.name}</span>
+          <span>Görüşmeyi yapan: {formatUserName(i().interviewer.name)}</span>
+          <span>· Davet eden: {formatUserName(i().invitedBy.name)}</span>
         </div>
 
         <Show when={i().location}>

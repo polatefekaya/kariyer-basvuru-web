@@ -1,3 +1,14 @@
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function formatUserName(name?: string | null, fallback = 'Yetkili'): string {
+  if (!name) return fallback
+  const trimmed = name.trim()
+  if (!trimmed || UUID_REGEX.test(trimmed)) {
+    return fallback
+  }
+  return trimmed
+}
+
 import type { ISODateString } from '@/features/common/types'
 import type {
   HiringUser,

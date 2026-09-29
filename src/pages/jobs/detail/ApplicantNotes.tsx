@@ -2,6 +2,7 @@ import { createEffect, createSignal, on, onCleanup, Show } from 'solid-js'
 import { AppTextArea } from '@/components/ui'
 import { useSaveNote, type ApplicationNote, type ApplicationRow } from '@/features/applications'
 import { formatDateTime } from '@/lib/format'
+import { formatUserName } from '@/features/hiring'
 import { track } from '@/lib/analytics'
 
 export interface ApplicantNotesProps {
@@ -54,7 +55,7 @@ export function ApplicantNotes(props: ApplicantNotesProps) {
     if (dirty()) return 'Kaydedilmemiş değişiklik'
     if (save.isError) return 'Kaydedilemedi'
     if (props.note) {
-      const who = props.note.author?.name
+      const who = props.note.author ? formatUserName(props.note.author.name) : null
       return `${who ? `Son güncelleme: ${who} · ` : 'Kaydedildi · '}${formatDateTime(props.note.updatedAt)}`
     }
     return 'Yazdıkça otomatik kaydedilir'

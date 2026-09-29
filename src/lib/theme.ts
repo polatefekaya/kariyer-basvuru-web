@@ -1,20 +1,53 @@
 import { createSignal } from 'solid-js'
+import { getCookieDomain } from './cookieSession'
 
 export type Theme = 'light' | 'dark' | 'system'
 
-const STORAGE_KEY = 'kz-theme'
+export const THEME_COOKIE_NAME = 'kariyer_theme'
+export const THEME_STORAGE_KEY = 'kariyer-theme-storage'
+export const LEGACY_STORAGE_KEY = 'kz-theme'
 
-const [theme, setThemeSignal] = createSignal<Theme>(readStored())
+function readCookieTheme(): 'light' | 'dark' | null {
+  try {
+    const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + THEME_COOKIE_NAME + '=([^;]*)'))
+    const val = match ? decodeURIComponent(match[1]) : null
+    return val === 'dark' || val === 'light' ? val : null
+  } catch {
+    return null
+  }
+}
+
+function writeCookieTheme(t: 'light' | 'dark'): void {
+  try {
+    const domain = getCookieDomain()
+    const domainAttr = domain ? `; domain=${domain}` : ''
+    const secureAttr = window.location.protocol === 'https:' ? '; Secure' : ''
+    document.cookie = `${THEME_COOKIE_NAME}=${t}${domainAttr}; path=/; max-age=31536000; SameSite=Lax${secureAttr}`
+  } catch {
+    /* ignore */
+  }
+}
 
 function readStored(): Theme {
   try {
-    const v = localStorage.getItem(STORAGE_KEY)
-    if (v === 'light' || v === 'dark' || v === 'system') return v
+    const cookieTheme = readCookieTheme()
+    if (cookieTheme) return cookieTheme
+
+    const raw = localStorage.getItem(THEME_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)?.state?.theme
+      if (parsed === 'dark' || parsed === 'light') return parsed
+    }
+
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacy === 'light' || legacy === 'dark' || legacy === 'system') return legacy
   } catch {
     /* storage unavailable */
   }
   return 'system'
 }
+
+const [theme, setThemeSignal] = createSignal<Theme>(readStored())
 
 function prefersDark() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
@@ -28,14 +61,18 @@ export function resolvedTheme(): 'light' | 'dark' {
 
 function apply() {
   const root = document.documentElement
-  root.classList.toggle('dark', resolvedTheme() === 'dark')
-  root.style.colorScheme = resolvedTheme()
+  const resolved = resolvedTheme()
+  root.classList.toggle('dark', resolved === 'dark')
+  root.style.colorScheme = resolved
 }
 
 export function setTheme(next: Theme) {
   setThemeSignal(next)
   try {
-    localStorage.setItem(STORAGE_KEY, next)
+    const concrete = next === 'system' ? (prefersDark() ? 'dark' : 'light') : next
+    writeCookieTheme(concrete)
+    localStorage.setItem(LEGACY_STORAGE_KEY, next)
+    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify({ state: { theme: concrete }, version: 0 }))
   } catch {
     /* storage unavailable */
   }
@@ -50,7 +87,10 @@ export function toggleTheme() {
 export function initTheme() {
   apply()
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (theme() === 'system') apply()
+    if (theme() === 'system') {
+      apply()
+      writeCookieTheme(prefersDark() ? 'dark' : 'light')
+    }
   })
 }
 

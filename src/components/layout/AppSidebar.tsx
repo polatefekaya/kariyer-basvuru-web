@@ -12,7 +12,8 @@ import {
   type JSX,
 } from 'solid-js'
 import { Dialog } from '@kobalte/core/dialog'
-import { ChevronLeft, ChevronsUpDown, LogOut, Menu, X } from 'lucide-solid'
+import { ChevronLeft, ChevronsUpDown, LogOut, Menu, Moon, Sun, SunMoon, X } from 'lucide-solid'
+import { setTheme, theme } from '@/lib/theme'
 import { cn } from '@/lib/cn'
 import {
   AppAvatar,
@@ -513,6 +514,48 @@ export function SidebarUserCard(props: SidebarUserCardProps) {
               <span class="truncate text-xs text-muted-foreground">{props.subtitle}</span>
             </Show>
           </span>
+        </div>
+        <AppDropdownSeparator />
+        <div class="px-2 py-1.5">
+          <div class="mb-1.5 px-1 text-xs font-medium text-muted-foreground">Görünüm</div>
+          <div class="grid grid-cols-3 gap-1 rounded-xl bg-secondary/50 p-1">
+            <button
+              type="button"
+              class={cn(
+                'flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all cursor-pointer',
+                theme() === 'light'
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
+              )}
+              onClick={() => setTheme('light')}
+            >
+              <Sun class="size-3.5" /> Açık
+            </button>
+            <button
+              type="button"
+              class={cn(
+                'flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all cursor-pointer',
+                theme() === 'dark'
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
+              )}
+              onClick={() => setTheme('dark')}
+            >
+              <Moon class="size-3.5" /> Koyu
+            </button>
+            <button
+              type="button"
+              class={cn(
+                'flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all cursor-pointer',
+                theme() === 'system'
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
+              )}
+              onClick={() => setTheme('system')}
+            >
+              <SunMoon class="size-3.5" /> Sistem
+            </button>
+          </div>
         </div>
         <Show when={props.menu}>
           <AppDropdownSeparator />

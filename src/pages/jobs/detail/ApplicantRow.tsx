@@ -33,6 +33,7 @@ import {
   type ApplicationStage,
 } from '@/features/applications'
 import {
+  formatUserName,
   INTERVIEW_CONFIRMATION_LABELS,
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_TYPE_LABELS,
@@ -157,9 +158,9 @@ export function ApplicantRow(props: ApplicantRowProps) {
               </AppBadge>
               <span class="text-foreground">{formatDateTime(next()!.startsAt)}</span>
               <span class="text-muted-foreground">
-                {INTERVIEW_TYPE_LABELS[next()!.type]} · {next()!.interviewer.name}
+                {INTERVIEW_TYPE_LABELS[next()!.type]} · {formatUserName(next()!.interviewer.name)}
               </span>
-              <span class="text-muted-foreground">· davet: {next()!.invitedBy.name}</span>
+              <span class="text-muted-foreground">· davet: {formatUserName(next()!.invitedBy.name)}</span>
               <Show when={next()!.confirmationStatus !== 'PENDING'}>
                 <span class={cn(next()!.confirmationStatus === 'ACCEPTED' ? 'text-success' : 'text-muted-foreground')}>
                   · {INTERVIEW_CONFIRMATION_LABELS[next()!.confirmationStatus]}

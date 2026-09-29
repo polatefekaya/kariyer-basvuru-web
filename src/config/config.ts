@@ -1,9 +1,83 @@
 // Central app configuration — all env-derived constants live here (mirrors
 // kariyer-zamani-web/src/config/config.js, Vite-flavoured: VITE_* instead of REACT_APP_*).
 
+function resolveAuthHubUrl(): string {
+  if (import.meta.env.VITE_AUTH_HUB_URL) {
+    return import.meta.env.VITE_AUTH_HUB_URL
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host === 'basvurular.kariyerzamani.com' || host === 'kariyerzamani.com') {
+      return 'https://auth.kariyerzamani.com/login'
+    }
+  }
+  return 'https://kz-auth.kariyerzamani.com/login'
+}
+
+function resolveSiteUrl(): string {
+  if (import.meta.env.VITE_SITE_URL) {
+    return import.meta.env.VITE_SITE_URL.replace(/\/$/, '')
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host.startsWith('kz-') || host.includes('tst')) {
+      return 'https://tst.kariyerzamani.com'
+    }
+    if (host.endsWith('kariyerzamani.com')) {
+      return 'https://kariyerzamani.com'
+    }
+  }
+  return 'https://kariyerzamani.com'
+}
+
+function resolveApiBaseUrl(): string | undefined {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host.startsWith('kz-') || host.includes('tst')) {
+      return 'https://tst.kariyerzamani.com/api'
+    }
+    if (host.endsWith('kariyerzamani.com')) {
+      return 'https://api.kariyerzamani.com'
+    }
+  }
+  return undefined
+}
+
+function resolveRecruitingApiUrl(): string {
+  if (import.meta.env.VITE_RECRUITING_API_URL) {
+    return import.meta.env.VITE_RECRUITING_API_URL
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host.startsWith('kz-') || host.includes('tst')) {
+      return 'https://tst.kariyerzamani.com/api/recruiting'
+    }
+    if (host.endsWith('kariyerzamani.com')) {
+      return 'https://api.kariyerzamani.com/api/recruiting'
+    }
+  }
+  return 'http://localhost:5340/api/recruiting'
+}
+
+function resolveRecruitingLive(): boolean {
+  if (import.meta.env.VITE_RECRUITING_LIVE !== undefined) {
+    return import.meta.env.VITE_RECRUITING_LIVE === 'true'
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host.endsWith('kariyerzamani.com')) {
+      return true
+    }
+  }
+  return false
+}
+
 const config = {
   /** Backend API base URL. */
-  API_BASE_URL: import.meta.env.VITE_API_URL,
+  API_BASE_URL: resolveApiBaseUrl(),
 
   /** CDN base URL — file-service (Cloudflare R2) public assets are served from here. */
   CDN_URL: import.meta.env.VITE_CDN_URL,
@@ -15,11 +89,11 @@ const config = {
    * The main Kariyer Zamanı site. The portal does not reimplement the screens that already
    * exist there — posting a job, editing one — it opens them in a new tab.
    */
-  SITE_URL: (import.meta.env.VITE_SITE_URL ?? 'https://kariyerzamani.com').replace(/\/$/, ''),
+  SITE_URL: resolveSiteUrl(),
 
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
-  AUTH_HUB_URL: import.meta.env.VITE_AUTH_HUB_URL ?? 'https://kz-auth.kariyerzamani.com/login',
+  AUTH_HUB_URL: resolveAuthHubUrl(),
 
   /**
    * Serve the feature APIs from in-memory mock data instead of the backend.
@@ -31,13 +105,13 @@ const config = {
     (import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS !== 'false' && !import.meta.env.VITE_SUPABASE_URL),
 
   /** kariyer-recruiting-service: the ATS pipeline, interviews, notes and activity. */
-  RECRUITING_API_URL: import.meta.env.VITE_RECRUITING_API_URL ?? 'http://localhost:5340/api/recruiting',
+  RECRUITING_API_URL: resolveRecruitingApiUrl(),
 
   /**
    * Use the live recruiting service even while the Node-backed features stay mocked. Lets the
    * ATS screens run against a locally seeded service without a Supabase project for the rest.
    */
-  RECRUITING_LIVE: import.meta.env.VITE_RECRUITING_LIVE === 'true',
+  RECRUITING_LIVE: resolveRecruitingLive(),
 
   /**
    * Whether the pipeline extras exist: interviews, recruiter notes and the activity trail. They

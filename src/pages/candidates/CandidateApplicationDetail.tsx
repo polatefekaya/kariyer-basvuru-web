@@ -3,6 +3,7 @@ import { AppBadge } from '@/components/ui'
 import { ApplicationActivity } from '@/components/applications'
 import { useApplicationNote, type ApplicationRow } from '@/features/applications'
 import {
+  formatUserName,
   INTERVIEW_CONFIRMATION_LABELS,
   INTERVIEW_RESULT_LABELS,
   INTERVIEW_STATUS_LABELS,
@@ -27,9 +28,9 @@ function InterviewLine(props: { interview: Interview }) {
       </AppBadge>
       <span class="text-foreground">{formatDateTime(i().startsAt)}</span>
       <span class="text-muted-foreground">
-        {INTERVIEW_TYPE_LABELS[i().type]} · {i().interviewer.name}
+        {INTERVIEW_TYPE_LABELS[i().type]} · {formatUserName(i().interviewer.name)}
       </span>
-      <span class="text-muted-foreground">· davet: {i().invitedBy.name}</span>
+      <span class="text-muted-foreground">· davet: {formatUserName(i().invitedBy.name)}</span>
       <Show when={i().status === 'SCHEDULED'}>
         <AppBadge variant={interviewConfirmationVariant[i().confirmationStatus]} size="sm">
           {INTERVIEW_CONFIRMATION_LABELS[i().confirmationStatus]}

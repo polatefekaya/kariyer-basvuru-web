@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { AUTH_LOGOUT_EVENT } from '@/lib/api'
 import type { AccountType } from '@/features/common/types'
 import config from '@/config/config'
+import { clearSessionCookie, readSessionCookie, writeSessionCookie } from '@/lib/cookieSession'
 
 export interface SessionState {
   /** Supabase session; null when signed out. */
@@ -111,13 +112,37 @@ export async function initSession() {
     }
   }
 
-  const { data } = await supabase.auth.getSession()
+  let { data } = await supabase.auth.getSession()
+
+  // If local storage has no active session, check the shared domain cookie (continuous auth across subdomains)
+  if (!data.session) {
+    const cookieSession = readSessionCookie()
+    if (cookieSession?.access_token && cookieSession?.refresh_token) {
+      await applyHandoff(cookieSession.access_token, cookieSession.refresh_token)
+      data = (await supabase.auth.getSession()).data
+    }
+  }
+
+  if (data.session) {
+    writeSessionCookie(data.session)
+  }
+
   apply(data.session)
-  supabase.auth.onAuthStateChange((_event, session) => apply(session))
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+      writeSessionCookie(session)
+    } else {
+      clearSessionCookie()
+    }
+    apply(session)
+  })
+
   window.addEventListener(AUTH_LOGOUT_EVENT, () => void signOut())
 }
 
 export async function signOut() {
+  clearSessionCookie()
   await supabase?.auth.signOut().catch(() => undefined)
   apply(null)
 }
