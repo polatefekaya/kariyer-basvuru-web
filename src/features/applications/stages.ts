@@ -58,6 +58,22 @@ export const stageVariant: Record<
   WITHDRAWN: 'muted',
 }
 
+/** Decisions that end the process but can still be corrected (the service allows a narrow way back). */
+export const FINAL_STAGES: ApplicationStage[] = ['HIRED', 'REJECTED']
+
+export const isCorrection = (from: ApplicationStage, to: ApplicationStage) =>
+  FINAL_STAGES.includes(from) && to !== 'REJECTED'
+
+/** Moving out of a final stage reads as undoing it, not as a step forward. */
+const CORRECTION_ACTIONS: Partial<Record<ApplicationStage, Partial<Record<ApplicationStage, string>>>> = {
+  HIRED: { OFFER: 'Teklif aşamasına geri al', HOLD: 'İşe alımı geri al' },
+  REJECTED: { HOLD: 'Reddi geri al' },
+}
+
+/** The verb for one particular move — `STAGE_ACTIONS` unless the move is a correction. */
+export const stageActionLabel = (from: ApplicationStage, to: ApplicationStage) =>
+  CORRECTION_ACTIONS[from]?.[to] ?? STAGE_ACTIONS[to]
+
 /** Stages still in play — the split the lists use for "aktif" vs "geçmiş". */
 export const OPEN_STAGES: ApplicationStage[] = ['NEW', 'REVIEWING', 'CONTACT', 'INTERVIEW', 'OFFER']
 

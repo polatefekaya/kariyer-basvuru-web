@@ -12,15 +12,9 @@ import {
   AppDropdownSeparator,
   AppDropdownTrigger,
   focusRingClass,
-  toast,
 } from '@/components/ui'
-import {
-  STAGE_ACTIONS,
-  stageVariant,
-  useSetApplicationStage,
-  type ApplicationRow,
-  type ApplicationStage,
-} from '@/features/applications'
+import { stageVariant, type ApplicationRow } from '@/features/applications'
+import { useStageChange } from '@/components/applications'
 import { formatDate, formatRelative } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import type { CandidateGroup } from './useCandidateGroups'
@@ -38,16 +32,8 @@ function StageBadge(props: { row: ApplicationRow }) {
 
 /** One application inside the expanded row: the posting, where it stands, and what you can do. */
 function ApplicationLine(props: { row: ApplicationRow; onOpenJob: (row: ApplicationRow) => void }) {
-  const move = useSetApplicationStage()
+  const stage = useStageChange({ row: () => props.row, subject: () => props.row.job.title })
   const match = () => props.row.score
-  const setStage = (stage: ApplicationStage) =>
-    move.mutate(
-      { uid: props.row.id, stage },
-      {
-        onSuccess: () => toast.success(`${props.row.job.title} · ${STAGE_ACTIONS[stage].toLocaleLowerCase('tr-TR')}`),
-        onError: () => toast.error('Başvuru durumu güncellenemedi'),
-      },
-    )
 
   return (
     <div class="flex flex-col gap-2 border-t border-border py-4 first:border-t-0 first:pt-0 last:pb-0 @2xl:flex-row @2xl:items-center @2xl:gap-4">
@@ -85,12 +71,12 @@ function ApplicationLine(props: { row: ApplicationRow; onOpenJob: (row: Applicat
           </AppDropdownTrigger>
           <AppDropdownContent>
             <For each={props.row.allowedActions}>
-              {(stage) => (
+              {(to) => (
                 <AppDropdownItem
-                  variant={stage === 'REJECTED' ? 'destructive' : undefined}
-                  onSelect={() => setStage(stage)}
+                  variant={to === 'REJECTED' ? 'destructive' : undefined}
+                  onSelect={() => stage.request(to)}
                 >
-                  {STAGE_ACTIONS[stage]}
+                  {stage.label(to)}
                 </AppDropdownItem>
               )}
             </For>
@@ -101,6 +87,8 @@ function ApplicationLine(props: { row: ApplicationRow; onOpenJob: (row: Applicat
           </AppDropdownContent>
         </AppDropdown>
       </div>
+
+      <stage.Confirm />
     </div>
   )
 }
