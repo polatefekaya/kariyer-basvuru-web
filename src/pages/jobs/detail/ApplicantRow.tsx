@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js'
+import { For, Show } from 'solid-js'
 import { useNavigate } from '@solidjs/router'
 import { Collapsible } from '@kobalte/core/collapsible'
 import { CalendarPlus, StickyNote, User } from 'lucide-solid'
@@ -12,26 +12,10 @@ import {
   AppDropdownItem,
   AppDropdownSeparator,
   AppDropdownTrigger,
-  AppModal,
-  AppModalContent,
-  AppModalDescription,
-  AppModalFooter,
-  AppModalHeader,
-  AppModalTitle,
   AppTooltip,
   focusRingClass,
-  toast,
 } from '@/components/ui'
-import {
-  applicantName,
-  matchTone,
-  STAGE_ACTIONS,
-  stageVariant,
-  useSetApplicationStage,
-  type ApplicationNote,
-  type ApplicationRow,
-  type ApplicationStage,
-} from '@/features/applications'
+import { applicantName, matchTone, stageVariant, type ApplicationNote, type ApplicationRow } from '@/features/applications'
 import {
   formatUserName,
   INTERVIEW_CONFIRMATION_LABELS,
@@ -41,11 +25,10 @@ import {
   type Interview,
 } from '@/features/hiring'
 import { formatDateTime, formatRelative } from '@/lib/format'
-import { recruitingErrorCode } from '@/lib/api'
 import { track } from '@/lib/analytics'
 import config from '@/config/config'
 import { cn } from '@/lib/cn'
-import { ApplicationActivity } from '@/components/applications'
+import { ApplicationActivity, useStageChange } from '@/components/applications'
 import { ApplicantNotes } from './ApplicantNotes'
 import { interviewEvent } from './interviewEvent'
 
@@ -62,7 +45,6 @@ export interface ApplicantRowProps {
 /** One applicant of this posting: stage, match, interview state, note and the actions. */
 export function ApplicantRow(props: ApplicantRowProps) {
   const navigate = useNavigate()
-  const move = useSetApplicationStage()
   const next = () => props.interviews.find((i) => i.status === 'SCHEDULED') ?? props.interviews[0]
 
   const openProfile = () => {
@@ -71,37 +53,15 @@ export function ApplicantRow(props: ApplicantRowProps) {
   }
   const tone = () => matchTone(props.row.score)
 
-  // Rejection is not undoable — REJECTED is terminal — so it asks first (technical document §7).
-  const [confirming, setConfirming] = createSignal<ApplicationStage | null>(null)
-
-  const setStage = (stage: ApplicationStage) => {
-    const from = props.row.stage
-
-    move.mutate(
-      { uid: props.row.id, stage },
-      {
-        onSuccess: () => {
-          track('application_status_changed', { fromStatus: from, toStatus: stage, actorRole: 'company' })
-          toast.success(`${applicantName(props.row)} · ${STAGE_ACTIONS[stage].toLocaleLowerCase('tr-TR')}`)
-        },
-        onError: (error) =>
-          toast.error(
-            recruitingErrorCode(error) === 'INVALID_STATUS_TRANSITION'
-              ? 'Adayın mevcut durumu bu işleme uygun değil.'
-              : 'Başvuru durumu güncellenemedi',
-          ),
-      },
-    )
-  }
-
-  const requestStage = (stage: ApplicationStage) => (stage === 'REJECTED' ? setConfirming(stage) : setStage(stage))
+  const stage = useStageChange({ row: () => props.row, subject: () => applicantName(props.row) })
 
   return (
     <Collapsible
       as="article"
       open={props.notesOpen}
       onOpenChange={props.onNotesOpenChange}
-      class="@container flex w-full flex-col rounded-2xl transition-colors hover:bg-secondary"
+      // Expanded, the card is a workspace (note editor, history) — a hover tint there reads as a highlight.
+      class={cn('@container flex w-full flex-col rounded-2xl transition-colors', !props.notesOpen && 'hover:bg-secondary')}
     >
       <div
         class={cn('flex cursor-pointer items-start gap-4 rounded-2xl p-5', focusRingClass)}
@@ -220,12 +180,12 @@ export function ApplicantRow(props: ApplicantRowProps) {
             <AppDropdownContent>
               {/* The service decides which moves are legal and returns them per row. */}
               <For each={props.row.allowedActions}>
-                {(stage) => (
+                {(to) => (
                   <AppDropdownItem
-                    variant={stage === 'REJECTED' ? 'destructive' : undefined}
-                    onSelect={() => requestStage(stage)}
+                    variant={to === 'REJECTED' ? 'destructive' : undefined}
+                    onSelect={() => stage.request(to)}
                   >
-                    {STAGE_ACTIONS[stage]}
+                    {stage.label(to)}
                   </AppDropdownItem>
                 )}
               </For>
@@ -255,32 +215,7 @@ export function ApplicantRow(props: ApplicantRowProps) {
         </Collapsible.Content>
       </Show>
 
-      <AppModal open={confirming() !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AppModalContent size="sm">
-          <AppModalHeader>
-            <AppModalTitle>Adayı reddet</AppModalTitle>
-            <AppModalDescription>
-              {applicantName(props.row)} bu ilan için reddedilecek. Reddedilen başvuru yeniden açılamaz.
-            </AppModalDescription>
-          </AppModalHeader>
-          <AppModalFooter>
-            <AppButton variant="outline" onClick={() => setConfirming(null)}>
-              Vazgeç
-            </AppButton>
-            <AppButton
-              variant="danger"
-              loading={move.isPending}
-              onClick={() => {
-                const stage = confirming()
-                setConfirming(null)
-                if (stage) setStage(stage)
-              }}
-            >
-              Reddet
-            </AppButton>
-          </AppModalFooter>
-        </AppModalContent>
-      </AppModal>
+      <stage.Confirm />
     </Collapsible>
   )
 }

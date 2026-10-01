@@ -312,9 +312,9 @@ const TRANSITIONS: Record<ApplicationStage, ApplicationStage[]> = {
   CONTACT: ['INTERVIEW', 'REJECTED', 'HOLD'],
   INTERVIEW: ['OFFER', 'REJECTED', 'HOLD'],
   OFFER: ['HIRED', 'REJECTED', 'HOLD'],
-  HIRED: [],
+  HIRED: ['OFFER', 'HOLD', 'REJECTED'],
   HOLD: ['NEW', 'REVIEWING', 'CONTACT', 'INTERVIEW', 'REJECTED'],
-  REJECTED: [],
+  REJECTED: ['HOLD'],
   WITHDRAWN: [],
 }
 

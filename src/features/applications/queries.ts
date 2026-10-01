@@ -3,6 +3,7 @@ import { optimistic, optimisticMany, queryClient } from '@/lib/query'
 import { currentCompanyUid } from '@/features/auth'
 import config from '@/config/config'
 import { applicationsApi } from './api'
+import { STAGE_LABELS } from './stages'
 import type {
   ApplicationListParams,
   ApplicationListResponse,
@@ -118,7 +119,7 @@ export function useSetApplicationStage() {
   return useMutation(() => ({
     mutationFn: ({ uid, stage, reason }: { uid: string; stage: ApplicationStage; reason?: string }) =>
       applicationsApi.setStage(uid, stage, reason),
-    onMutate: ({ uid, stage }) => patchLists(uid, (row) => ({ ...row, stage, stageLabel: row.stageLabel })),
+    onMutate: ({ uid, stage }) => patchLists(uid, (row) => ({ ...row, stage, stageLabel: STAGE_LABELS[stage] })),
     onError: (_e, _v, ctx) => ctx?.rollback(),
     onSettled: invalidateAll,
   }))
