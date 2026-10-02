@@ -36,6 +36,7 @@ import { useCurrentCompany } from '@/features/auth'
 import { ApplicantRow } from './ApplicantRow'
 import { InterviewsBoard } from './InterviewsBoard'
 import { InterviewModal } from './InterviewModal'
+import { InterviewManageModal, type InterviewManageView } from './InterviewManageModal'
 
 type DetailTab = 'basvuranlar' | 'mulakatlar' | 'ilan'
 // Mülakatlar only exists where interviews do — see config.HAS_PIPELINE.
@@ -171,13 +172,26 @@ export function JobDetailPage() {
       else next.delete(uid)
       return next
     })
-  const openInvite = (row: ApplicationRow, interview?: Interview) => {
+  const openInvite = (row: ApplicationRow) => {
     track('interview_invite_opened', { entryPoint: 'list' })
-    setInviting({ row, interview })
+    setInviting({ row })
   }
-  const editInterview = (interview: Interview) => {
-    const row = rows().find((r) => r.id === interview.applicationUid)
+  const rowFor = (interview: Interview) =>
+    (applications.data?.items ?? []).find((r) => r.id === interview.applicationUid)
+
+  // One interview's lifecycle — overview, outcome, no-show, cancellation. Rescheduling and a new
+  // round hand over to the scheduling form above.
+  const [managing, setManaging] = createSignal<{ interview: Interview; view?: InterviewManageView } | null>(null)
+  const manageInterview = (interview: Interview, view?: InterviewManageView) => setManaging({ interview, view })
+  const rescheduleInterview = (interview: Interview) => {
+    const row = rowFor(interview)
+    setManaging(null)
     if (row) setInviting({ row, interview })
+  }
+  const reinvite = (interview: Interview) => {
+    const row = rowFor(interview)
+    setManaging(null)
+    if (row) openInvite(row)
   }
 
   const setJobStatus = useSetJobStatus()
@@ -374,6 +388,7 @@ export function JobDetailPage() {
                             note={noteFor(row.id)}
                             jobUid={params.uid}
                             onInvite={openInvite}
+                            onManageInterview={manageInterview}
                             notesOpen={openNotes().has(row.id)}
                             onNotesOpenChange={(open) => toggleNotes(row.id, open)}
                           />
@@ -390,8 +405,9 @@ export function JobDetailPage() {
                 <InterviewsBoard
                   board={interviews.data ?? { ongoing: [], upcoming: [], past: [] }}
                   applications={applications.data?.items ?? []}
-                  jobUid={params.uid}
-                  onEdit={editInterview}
+                  onManage={manageInterview}
+                  onReschedule={rescheduleInterview}
+                  onReinvite={reinvite}
                 />
               </Show>
             </AppTabsContent>
@@ -430,6 +446,15 @@ export function JobDetailPage() {
         interview={inviting()?.interview ?? null}
         jobUid={params.uid}
         onClose={() => setInviting(null)}
+      />
+
+      <InterviewManageModal
+        interview={managing() ? (allInterviews().find((i) => i.uid === managing()!.interview.uid) ?? managing()!.interview) : null}
+        application={managing() ? rowFor(managing()!.interview) : undefined}
+        initialView={managing()?.view}
+        onClose={() => setManaging(null)}
+        onReschedule={rescheduleInterview}
+        onReinvite={reinvite}
       />
     </div>
   )

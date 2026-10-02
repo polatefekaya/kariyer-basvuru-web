@@ -676,6 +676,15 @@ export const mockHiringApi = {
     if (index < 0) throw new Error('Interview not found')
 
     const current = interviews[index]!
+
+    // Same rule as the service's Interview.EnsureActive: a cancelled or completed interview can no
+    // longer be rescheduled, cancelled or marked as a no-show — only its result re-recorded.
+    const closing = input.status === 'CANCELLED' || input.status === 'NO_SHOW'
+    const rescheduling = !!(input.startsAt || input.durationMinutes || input.type || input.location || input.videoUrl)
+    if ((closing || rescheduling) && (current.status === 'CANCELLED' || current.status === 'COMPLETED')) {
+      throw new Error(`Interview is ${current.status}`)
+    }
+
     const type = input.type ?? current.type
 
     interviews[index] = {
@@ -693,16 +702,9 @@ export const mockHiringApi = {
     return interviews[index]!
   },
 
-  cancel: async (uid: string): Promise<Interview> => {
-    await delay(200)
-    const index = interviews.findIndex((i) => i.uid === uid)
-    if (index < 0) throw new Error('Interview not found')
-
-    const cancelled: Interview = { ...interviews[index]!, status: 'CANCELLED', updatedAt: new Date().toISOString() }
-    interviews.splice(index, 1)
-
-    return cancelled
-  },
+  cancel: async (uid: string, candidateMessage?: string | null): Promise<Interview> =>
+    // The service keeps a cancelled interview (it moves to the board's past), so the mock does too.
+    mockHiringApi.update(uid, { status: 'CANCELLED', candidateMessage: candidateMessage ?? undefined }),
 
   members: async (): Promise<HiringUser[]> => {
     await delay(150)
