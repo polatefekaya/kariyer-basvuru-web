@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { AUTH_LOGOUT_EVENT } from '@/lib/api'
 import type { AccountType } from '@/features/common/types'
 import config from '@/config/config'
-import { clearSessionCookie, readSessionCookie, writeSessionCookie } from '@/lib/cookieSession'
+import { clearSessionCookie, readSessionCookie } from '@/lib/cookieSession'
 
 export interface SessionState {
   /** Supabase session; null when signed out. */
@@ -114,7 +114,9 @@ export async function initSession() {
 
   let { data } = await supabase.auth.getSession()
 
-  // If local storage has no active session, check the shared domain cookie (continuous auth across subdomains)
+  // The session itself is shared across subdomains (see sharedAuthStorage). The older
+  // kz_sb_session cookie is only read once, so a login made before the switch carries over, and
+  // then removed — it duplicated the tokens on every request to *.kariyerzamani.com.
   if (!data.session) {
     const cookieSession = readSessionCookie()
     if (cookieSession?.access_token && cookieSession?.refresh_token) {
@@ -123,20 +125,11 @@ export async function initSession() {
     }
   }
 
-  if (data.session) {
-    writeSessionCookie(data.session)
-  }
+  clearSessionCookie()
 
   apply(data.session)
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) {
-      writeSessionCookie(session)
-    } else {
-      clearSessionCookie()
-    }
-    apply(session)
-  })
+  supabase.auth.onAuthStateChange((_event, session) => apply(session))
 
   window.addEventListener(AUTH_LOGOUT_EVENT, () => void signOut())
 }
