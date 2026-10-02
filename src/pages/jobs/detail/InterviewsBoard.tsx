@@ -11,7 +11,6 @@ import {
   AppDropdownTrigger,
   AppEmptyState,
   focusRingClass,
-  toast,
 } from '@/components/ui'
 import {
   formatUserName,
@@ -19,13 +18,12 @@ import {
   INTERVIEW_RESULT_LABELS,
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_TYPE_LABELS,
+  awaitsOutcome,
+  interviewActions,
   interviewConfirmationVariant,
   interviewStatusVariant,
   isOngoing,
-  useCancelInterview,
-  useUpdateInterview,
   type Interview,
-  type InterviewResult,
   type JobInterviewBoard,
 } from '@/features/hiring'
 import { applicantName, type ApplicationRow } from '@/features/applications'
@@ -33,30 +31,21 @@ import { AddToCalendar } from '@/components/AddToCalendar'
 import { formatDateTime, formatRelative } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { interviewEvent } from './interviewEvent'
+import type { InterviewManageView } from './InterviewManageModal'
 
-const RESULTS: InterviewResult[] = ['POSITIVE', 'UNDECIDED', 'NEGATIVE']
+export interface InterviewHandlers {
+  /** Opens the interview's manage modal, optionally straight on one step. */
+  onManage: (interview: Interview, view?: InterviewManageView) => void
+  onReschedule: (interview: Interview) => void
+  onReinvite: (interview: Interview) => void
+}
 
-function Card(props: {
-  interview: Interview
-  application: ApplicationRow | undefined
-  jobUid: string
-  onEdit: (interview: Interview) => void
-}) {
+function Card(props: InterviewHandlers & { interview: Interview; application: ApplicationRow | undefined }) {
   const navigate = useNavigate()
-  const update = useUpdateInterview()
-  const cancel = useCancelInterview()
   const i = () => props.interview
   const live = () => isOngoing(i())
   const name = () => (props.application ? applicantName(props.application) : 'Aday')
-
-  const complete = (result: InterviewResult) =>
-    update.mutate(
-      { uid: i().uid, input: { status: 'COMPLETED', result } },
-      {
-        onSuccess: () => toast.success(`Mülakat sonuçlandı · ${INTERVIEW_RESULT_LABELS[result]}`),
-        onError: () => toast.error('Mülakat güncellenemedi'),
-      },
-    )
+  const can = (action: ReturnType<typeof interviewActions>[number]) => interviewActions(i()).includes(action)
 
   return (
     <article
@@ -82,6 +71,11 @@ function Card(props: {
           <Show when={i().status === 'SCHEDULED'}>
             <AppBadge variant={interviewConfirmationVariant[i().confirmationStatus]} size="sm">
               {INTERVIEW_CONFIRMATION_LABELS[i().confirmationStatus]}
+            </AppBadge>
+          </Show>
+          <Show when={awaitsOutcome(i())}>
+            <AppBadge variant="warning" size="sm">
+              Sonuç bekleniyor
             </AppBadge>
           </Show>
           <Show when={i().result}>
@@ -139,10 +133,15 @@ function Card(props: {
             placement="bottom-end"
             event={interviewEvent(i(), props.application)}
           />
-          <AppButton size="sm" variant="secondary" class="hidden md:inline-flex" onClick={() => complete('POSITIVE')}>
-            Sonuçlandır
-          </AppButton>
         </Show>
+        <AppButton
+          size="sm"
+          variant={awaitsOutcome(i()) ? 'primary' : 'secondary'}
+          class="hidden md:inline-flex"
+          onClick={() => props.onManage(i(), awaitsOutcome(i()) ? 'complete' : 'overview')}
+        >
+          {awaitsOutcome(i()) ? 'Sonuçlandır' : 'Yönet'}
+        </AppButton>
         <AppDropdown placement="bottom-end">
           <AppDropdownTrigger
             aria-label="Mülakat işlemleri"
@@ -154,38 +153,27 @@ function Card(props: {
             ⋯
           </AppDropdownTrigger>
           <AppDropdownContent>
-            <AppDropdownItem onSelect={() => props.onEdit(i())}>Düzenle / yeniden planla</AppDropdownItem>
-            <AppDropdownSeparator />
-            <For each={RESULTS}>
-              {(r) => (
-                <AppDropdownItem disabled={i().status === 'COMPLETED' && i().result === r} onSelect={() => complete(r)}>
-                  Sonuç: {INTERVIEW_RESULT_LABELS[r]}
-                </AppDropdownItem>
-              )}
-            </For>
-            <AppDropdownItem
-              disabled={i().status !== 'SCHEDULED'}
-              onSelect={() =>
-                update.mutate(
-                  { uid: i().uid, input: { status: 'NO_SHOW' } },
-                  { onSuccess: () => toast.info('Katılmadı olarak işaretlendi') },
-                )
-              }
-            >
-              Katılmadı olarak işaretle
-            </AppDropdownItem>
-            <AppDropdownSeparator />
-            <AppDropdownItem
-              variant="destructive"
-              onSelect={() =>
-                cancel.mutate(i().uid, {
-                  onSuccess: () => toast.success('Mülakat iptal edildi'),
-                  onError: () => toast.error('Mülakat iptal edilemedi'),
-                })
-              }
-            >
-              Mülakatı iptal et
-            </AppDropdownItem>
+            <AppDropdownItem onSelect={() => props.onManage(i())}>Mülakatı yönet</AppDropdownItem>
+            <Show when={can('reschedule')}>
+              <AppDropdownItem onSelect={() => props.onReschedule(i())}>Yeniden planla</AppDropdownItem>
+            </Show>
+            <Show when={can('complete')}>
+              <AppDropdownItem onSelect={() => props.onManage(i(), 'complete')}>
+                {i().status === 'COMPLETED' ? 'Sonucu düzenle' : 'Sonuçlandır'}
+              </AppDropdownItem>
+            </Show>
+            <Show when={can('noShow')}>
+              <AppDropdownItem onSelect={() => props.onManage(i(), 'noShow')}>Katılmadı olarak işaretle</AppDropdownItem>
+            </Show>
+            <Show when={can('reinvite')}>
+              <AppDropdownItem onSelect={() => props.onReinvite(i())}>Yeni mülakat planla</AppDropdownItem>
+            </Show>
+            <Show when={can('cancel')}>
+              <AppDropdownSeparator />
+              <AppDropdownItem variant="destructive" onSelect={() => props.onManage(i(), 'cancel')}>
+                Mülakatı iptal et
+              </AppDropdownItem>
+            </Show>
           </AppDropdownContent>
         </AppDropdown>
       </div>
@@ -207,12 +195,12 @@ function Group(props: { title: string; count: number; children: JSX.Element }) {
 }
 
 /** Devam eden · yaklaşan · geçmiş mülakatlar for this posting — grouped by the service. */
-export function InterviewsBoard(props: {
-  board: JobInterviewBoard
-  applications: ApplicationRow[]
-  jobUid: string
-  onEdit: (interview: Interview) => void
-}) {
+export function InterviewsBoard(
+  props: InterviewHandlers & {
+    board: JobInterviewBoard
+    applications: ApplicationRow[]
+  },
+) {
   const byApplication = createMemo(() => new Map(props.applications.map((a) => [a.id, a])))
   const all = createMemo(() => [...props.board.ongoing, ...props.board.upcoming, ...props.board.past])
 
@@ -220,8 +208,9 @@ export function InterviewsBoard(props: {
     <Card
       interview={i}
       application={byApplication().get(i.applicationUid)}
-      jobUid={props.jobUid}
-      onEdit={props.onEdit}
+      onManage={props.onManage}
+      onReschedule={props.onReschedule}
+      onReinvite={props.onReinvite}
     />
   )
 

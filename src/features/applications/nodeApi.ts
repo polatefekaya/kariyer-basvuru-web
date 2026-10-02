@@ -11,8 +11,11 @@ import type {
   ApplicationRow,
   ApplicationStage,
   ApplicationStatsResponse,
+  BulkChangeStageResponse,
   ChangeStageResponse,
   CompanyApplicationParams,
+  MessageRecipient,
+  SendMessageResponse,
 } from './types'
 
 /**
@@ -250,6 +253,24 @@ export const nodeApplicationsApi = {
   listByCompany,
   stats,
   setStage,
+  // No bulk route in the Node backend: one move per application, judged one by one like the
+  // recruiting service does, so a selection spanning stages still moves what it can.
+  setStageBulk: async (applicationUids: string[], stage: ApplicationStage): Promise<BulkChangeStageResponse> => {
+    const results = await Promise.allSettled(applicationUids.map((uid) => setStage(uid, stage)))
+    return {
+      moved: results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : [])),
+      skipped: results.flatMap((r, i) =>
+        r.status === 'rejected'
+          ? [{ applicationUid: applicationUids[i]!, reason: 'INVALID_STATUS_TRANSITION' as const, stage: null }]
+          : [],
+      ),
+    }
+  },
+  // Messages are recorded and mailed by the recruiting service; without it there is no one to send them.
+  messageAudience: async (): Promise<MessageRecipient[]> => [],
+  sendMessage: async (): Promise<SendMessageResponse> => {
+    throw new Error('Adaylara mesaj göndermek için işe alım servisi gerekiyor.')
+  },
   notesByJob: async (): Promise<ApplicationNote[]> => [],
   note: async (): Promise<ApplicationNote | null> => null,
   saveNote: async (): Promise<ApplicationNote | null> => {

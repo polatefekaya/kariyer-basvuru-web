@@ -79,7 +79,7 @@ export function AppRadioGroup<T extends string = string>(props: AppRadioGroupPro
                 'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-60',
                 isCard()
                   ? cn(
-                      'cursor-pointer rounded-2xl border border-border bg-card p-4 transition-colors',
+                      'relative cursor-pointer rounded-2xl border border-border bg-card p-4 transition-colors',
                       'hover:bg-secondary/40 data-[checked]:border-primary data-[checked]:bg-primary/5',
                     )
                   : 'cursor-pointer',
@@ -97,7 +97,14 @@ export function AppRadioGroup<T extends string = string>(props: AppRadioGroupPro
                 <RadioGroupPrimitive.ItemIndicator class="size-2 rounded-full bg-primary" />
               </RadioGroupPrimitive.ItemControl>
               <div class="flex flex-col gap-0.5">
-                <RadioGroupPrimitive.ItemLabel class="text-sm text-foreground">
+                {/* In a card, the label's hit area is stretched over the whole tile: Kobalte's Item is a
+                    plain div, so otherwise only the label text and the dot select the option. */}
+                <RadioGroupPrimitive.ItemLabel
+                  class={cn(
+                    'text-sm text-foreground',
+                    isCard() && "cursor-pointer after:absolute after:inset-0 after:rounded-2xl after:content-['']",
+                  )}
+                >
                   {opt.label}
                 </RadioGroupPrimitive.ItemLabel>
                 <Show when={opt.description}>

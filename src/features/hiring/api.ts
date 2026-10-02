@@ -13,7 +13,9 @@ const realHiringApi = {
 
   update: (uid: string, input: InterviewUpdateInput) => recruitingApi.patch<Interview>(`/interviews/${uid}`, input),
 
-  cancel: (uid: string) => recruitingApi.delete<Interview>(`/interviews/${uid}`),
+  // PATCH rather than DELETE: only the PATCH carries the message the cancellation e-mail quotes.
+  cancel: (uid: string, candidateMessage?: string | null) =>
+    recruitingApi.patch<Interview>(`/interviews/${uid}`, { status: 'CANCELLED', candidateMessage }),
 
   members: () => recruitingApi.get<HiringUser[]>('/company/members'),
 }
