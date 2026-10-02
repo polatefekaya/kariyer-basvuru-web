@@ -22,6 +22,8 @@ export interface AnalyticsEvent {
    * only because the funnel definition names it.
    */
   application_status_changed: { fromStatus: string; toStatus: string; actorRole: 'company' }
+  applications_bulk_status_changed: { toStatus: string; count: number }
+  candidates_messaged: { recipientCount: number; mode: 'stages' | 'selection'; excludedPreviouslyMessaged: number }
   interview_invite_opened: { entryPoint: 'list' | 'detail' }
   interview_invite_sent: { type: string; duration: number; participantCount: number }
   application_note_created: { applicationId: string; noteLength: number }

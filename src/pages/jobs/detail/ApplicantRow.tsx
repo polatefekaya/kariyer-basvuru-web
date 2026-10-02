@@ -7,6 +7,7 @@ import {
   AppAvatar,
   AppBadge,
   AppButton,
+  AppCheckbox,
   AppDropdown,
   AppDropdownContent,
   AppDropdownItem,
@@ -47,6 +48,9 @@ export interface ApplicantRowProps {
   onManageInterview: (interview: Interview) => void
   notesOpen: boolean
   onNotesOpenChange: (open: boolean) => void
+  /** Bulk selection; the checkbox only shows when the page supports bulk actions. */
+  selected?: boolean
+  onSelectedChange?: (selected: boolean) => void
 }
 
 /**
@@ -89,16 +93,25 @@ export function ApplicantRow(props: ApplicantRowProps) {
         aria-expanded={expandable() ? props.notesOpen : undefined}
         aria-label={expandable() ? `${applicantName(props.row)} · ayrıntıları ${props.notesOpen ? 'gizle' : 'göster'}` : undefined}
         onClick={(e) => {
-          if (!expandable() || (e.target as Element).closest('button, a, [role="menu"]')) return
+          if (!expandable() || (e.target as Element).closest('button, a, [role="menu"], [data-row-control]')) return
           toggle()
         }}
         onKeyDown={(e) => {
           if (!expandable() || (e.key !== 'Enter' && e.key !== ' ')) return
-          if ((e.target as Element).closest('button, a, [role="menu"]')) return
+          if ((e.target as Element).closest('button, a, [role="menu"], [data-row-control]')) return
           e.preventDefault()
           toggle()
         }}
       >
+        <Show when={props.onSelectedChange}>
+          <div data-row-control class="flex h-12 shrink-0 items-center">
+            <AppCheckbox
+              checked={!!props.selected}
+              onChange={(checked) => props.onSelectedChange!(checked)}
+              aria-label={`${applicantName(props.row)} seç`}
+            />
+          </div>
+        </Show>
         <AppAvatar src={props.row.candidate.avatarUrl} name={props.row.candidate.fullName} size="lg" />
 
         <div class="flex min-w-0 flex-1 flex-col gap-2">
@@ -237,7 +250,13 @@ export function ApplicantRow(props: ApplicantRowProps) {
 
       <Show when={config.HAS_PIPELINE}>
         <Collapsible.Content class="overflow-hidden data-[expanded]:animate-collapsible-down data-[closed]:animate-collapsible-up">
-          <div class="flex flex-col gap-6 border-t border-border px-5 py-5 pl-[5.25rem]">
+          {/* Indented to line up with the name: past the avatar, and the checkbox when there is one. */}
+          <div
+            class={cn(
+              'flex flex-col gap-6 border-t border-border px-5 py-5',
+              props.onSelectedChange ? 'pl-[7.25rem]' : 'pl-[5.25rem]',
+            )}
+          >
             <Show when={props.interviews.length > 0}>
               <section class="flex max-w-4xl flex-col gap-2">
                 <h4 class="text-sm text-muted-foreground">Mülakatlar</h4>

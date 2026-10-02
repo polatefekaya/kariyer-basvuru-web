@@ -6,8 +6,12 @@ import type {
   ApplicationRow,
   ApplicationStage,
   ApplicationStatsResponse,
+  BulkChangeStageResponse,
   ChangeStageResponse,
   CompanyApplicationParams,
+  MessageRecipient,
+  SendMessageInput,
+  SendMessageResponse,
 } from '@/features/applications/types'
 import { APPLICATION_STAGES, STAGE_LABELS } from '@/features/applications/stages'
 import type { CandidateProfile } from '@/features/candidates/types'
@@ -413,6 +417,26 @@ const notes: ApplicationNote[] = applications
 
 const noteFor = (applicationUid: string) => notes.find((n) => n.applicationUid === applicationUid)
 
+// Who received a company message, and how often — the service reads this from MESSAGE_SENT
+// activity. Every fifth applicant starts out already messaged so the portal's warning shows.
+const messaged = new Map<string, { at: string; count: number }>(
+  applications
+    .filter((_, i) => i % 5 === 2)
+    .map((a) => [a.id, { at: new Date(Date.now() - 3 * 24 * hour).toISOString(), count: 1 }]),
+)
+
+const toRecipient = (row: ApplicationRow): MessageRecipient => ({
+  applicationUid: row.id,
+  candidateUid: row.candidate.id,
+  fullName: row.candidate.fullName,
+  email: row.candidate.email ?? null,
+  avatarUrl: row.candidate.avatarUrl ?? null,
+  stage: row.stage,
+  stageLabel: STAGE_LABELS[row.stage],
+  lastMessagedAt: messaged.get(row.id)?.at ?? null,
+  messageCount: messaged.get(row.id)?.count ?? 0,
+})
+
 const nextInterviewFor = (applicationUid: string) => {
   const scheduled = interviews
     .filter((i) => i.applicationUid === applicationUid && i.status === 'SCHEDULED')
@@ -519,6 +543,46 @@ export const mockApplicationsApi = {
       stageLabel: STAGE_LABELS[status],
       allowedActions: TRANSITIONS[status],
     }
+  },
+
+  setStageBulk: async (applicationUids: string[], status: ApplicationStage): Promise<BulkChangeStageResponse> => {
+    const result: BulkChangeStageResponse = { moved: [], skipped: [] }
+
+    for (const uid of applicationUids) {
+      const row = applications.find((a) => a.id === uid)
+      if (!row) result.skipped.push({ applicationUid: uid, reason: 'NOT_FOUND', stage: null })
+      else if (!TRANSITIONS[row.stage].includes(status))
+        result.skipped.push({ applicationUid: uid, reason: 'INVALID_STATUS_TRANSITION', stage: row.stage })
+      else result.moved.push(await mockApplicationsApi.setStage(uid, status))
+    }
+
+    return result
+  },
+
+  messageAudience: async (jobUid: string, stages: ApplicationStage[] = []): Promise<MessageRecipient[]> => {
+    await delay(250)
+    return applications
+      .filter((a) => a.job.uid === jobUid && (stages.length === 0 || stages.includes(a.stage)))
+      .map(toRecipient)
+  },
+
+  sendMessage: async (jobUid: string, input: SendMessageInput): Promise<SendMessageResponse> => {
+    await delay(300)
+    const response: SendMessageResponse = { messageUid: `${Date.now()}-message`, sent: [], skipped: [] }
+    const now = new Date().toISOString()
+
+    for (const uid of input.applicationUids) {
+      const row = applications.find((a) => a.id === uid && a.job.uid === jobUid)
+      if (!row) response.skipped.push({ applicationUid: uid, reason: 'NOT_FOUND' })
+      else if (!row.candidate.email) response.skipped.push({ applicationUid: uid, reason: 'NO_EMAIL' })
+      else {
+        const previous = messaged.get(uid)
+        messaged.set(uid, { at: now, count: (previous?.count ?? 0) + 1 })
+        response.sent.push(toRecipient(row))
+      }
+    }
+
+    return response
   },
 
   notesByJob: async (jobUid: string): Promise<ApplicationNote[]> => {

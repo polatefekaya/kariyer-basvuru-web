@@ -9,8 +9,12 @@ import type {
   ApplicationNote,
   ApplicationStage,
   ApplicationStatsResponse,
+  BulkChangeStageResponse,
   ChangeStageResponse,
   CompanyApplicationParams,
+  MessageRecipient,
+  SendMessageInput,
+  SendMessageResponse,
 } from './types'
 
 const realApplicationsApi = {
@@ -24,6 +28,17 @@ const realApplicationsApi = {
 
   setStage: (applicationUid: string, status: ApplicationStage, reason?: string) =>
     recruitingApi.patch<ChangeStageResponse>(`/applications/${applicationUid}/status`, { status, reason }),
+
+  setStageBulk: (applicationUids: string[], status: ApplicationStage, reason?: string) =>
+    recruitingApi.patch<BulkChangeStageResponse>('/applications/status', { applicationUids, status, reason }),
+
+  messageAudience: (jobUid: string, stages: ApplicationStage[] = []) =>
+    recruitingApi.get<MessageRecipient[]>(`/jobs/${jobUid}/message-audience`, {
+      params: stages.length > 0 ? { stages: stages.join(',') } : {},
+    }),
+
+  sendMessage: (jobUid: string, input: SendMessageInput) =>
+    recruitingApi.post<SendMessageResponse>(`/jobs/${jobUid}/messages`, input),
 
   notesByJob: (jobUid: string) => recruitingApi.get<ApplicationNote[]>(`/jobs/${jobUid}/notes`),
 

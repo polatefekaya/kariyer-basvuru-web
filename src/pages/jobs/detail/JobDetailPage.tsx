@@ -1,10 +1,11 @@
 import { createEffect, createMemo, createSignal, For, Index, Match, on, Show, Switch } from 'solid-js'
 import { useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import { ArrowLeft, Pencil, RefreshCw, Search, Users } from 'lucide-solid'
+import { ArrowLeft, MessagesSquare, Pencil, RefreshCw, Search, Users } from 'lucide-solid'
 import {
   AppAlert,
   AppBadge,
   AppButton,
+  AppCheckbox,
   AppEmptyState,
   AppInput,
   AppLoadingBlock,
@@ -37,6 +38,8 @@ import { ApplicantRow } from './ApplicantRow'
 import { InterviewsBoard } from './InterviewsBoard'
 import { InterviewModal } from './InterviewModal'
 import { InterviewManageModal, type InterviewManageView } from './InterviewManageModal'
+import { BulkActionBar } from './BulkActionBar'
+import { CandidateMessageModal } from './CandidateMessageModal'
 
 type DetailTab = 'basvuranlar' | 'mulakatlar' | 'ilan'
 // Mülakatlar only exists where interviews do — see config.HAS_PIPELINE.
@@ -198,6 +201,33 @@ export function JobDetailPage() {
   const jobStats = () => job.data?.stats
   const stageCounts = () => stats.data?.stages ?? applications.data?.stats ?? {}
 
+  // ---- bulk selection & messaging ----
+  // Only where the recruiting service runs: bulk moves and messages are its endpoints.
+  const bulk = config.HAS_PIPELINE
+  const [selected, setSelected] = createSignal<ReadonlySet<string>>(new Set())
+  const selectedRows = createMemo(() => rows().filter((r) => selected().has(r.id)))
+  const setRowSelected = (uid: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(uid)
+      else next.delete(uid)
+      return next
+    })
+  const allSelected = () => rows().length > 0 && rows().every((r) => selected().has(r.id))
+  const someSelected = () => selectedRows().length > 0 && !allSelected()
+  const toggleAll = (on: boolean) => setSelected(on ? new Set(rows().map((r) => r.id)) : new Set<string>())
+  // A filter or search that hides a row also drops it from the selection — nothing acts on rows
+  // the recruiter can no longer see.
+  createEffect(
+    on(rows, (visible) => {
+      const ids = new Set(visible.map((r) => r.id))
+      setSelected((prev) => (([...prev].every((id) => ids.has(id))) ? prev : new Set([...prev].filter((id) => ids.has(id)))))
+    }),
+  )
+
+  const [messaging, setMessaging] = createSignal<{ applicationUids: string[] | null } | null>(null)
+  const messageSelected = () => setMessaging({ applicationUids: selectedRows().map((r) => r.id) })
+
   return (
     <div class="@container flex w-full flex-col gap-6 sm:px-2 lg:px-6">
       <AppButton variant="ghost" size="sm" leftIcon={<ArrowLeft />} class="self-start" onClick={() => navigate('/')}>
@@ -283,6 +313,15 @@ export function JobDetailPage() {
             <AppTabsContent value="basvuranlar">
               <div class="flex flex-col gap-5">
                 <div class="flex flex-wrap items-center gap-3">
+                  <Show when={bulk && rows().length > 0}>
+                    <AppCheckbox
+                      checked={allSelected()}
+                      indeterminate={someSelected()}
+                      onChange={toggleAll}
+                      aria-label="Listedeki tüm başvuranları seç"
+                      class="pl-5"
+                    />
+                  </Show>
                   <AppInput
                     class="min-w-64 flex-1"
                     value={term()}
@@ -327,12 +366,26 @@ export function JobDetailPage() {
                       Filtreleri temizle
                     </AppButton>
                   </Show>
+                  <Show when={bulk}>
+                    <AppButton
+                      size="sm"
+                      variant="secondary"
+                      leftIcon={<MessagesSquare />}
+                      onClick={() => setMessaging({ applicationUids: null })}
+                    >
+                      Adaylarla iletişime geç
+                    </AppButton>
+                  </Show>
                   <AppTooltip content="Bu ilana gelen başvurular">
                     <AppBadge variant="secondary" size="md">
                       {formatNumber(rows().length)} kişi
                     </AppBadge>
                   </AppTooltip>
                 </div>
+
+                <Show when={bulk && selectedRows().length > 0}>
+                  <BulkActionBar selected={selectedRows()} onClear={() => toggleAll(false)} onMessage={messageSelected} />
+                </Show>
 
                 <Switch>
                   <Match when={applications.isPending}>
@@ -391,6 +444,8 @@ export function JobDetailPage() {
                             onManageInterview={manageInterview}
                             notesOpen={openNotes().has(row.id)}
                             onNotesOpenChange={(open) => toggleNotes(row.id, open)}
+                            selected={selected().has(row.id)}
+                            onSelectedChange={bulk ? (on) => setRowSelected(row.id, on) : undefined}
                           />
                         )}
                       </For>
@@ -446,6 +501,15 @@ export function JobDetailPage() {
         interview={inviting()?.interview ?? null}
         jobUid={params.uid}
         onClose={() => setInviting(null)}
+      />
+
+      <CandidateMessageModal
+        open={messaging() !== null}
+        jobUid={params.uid}
+        jobTitle={job.data?.title ?? ''}
+        stageCounts={stageCounts()}
+        applicationUids={messaging()?.applicationUids}
+        onClose={() => setMessaging(null)}
       />
 
       <InterviewManageModal

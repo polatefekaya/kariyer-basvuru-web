@@ -80,6 +80,38 @@ export interface ApplicationStatsResponse {
   interviews: { total: number; scheduled: number }
 }
 
+/** One applicant in the "Adaylarla iletişime geç" list. */
+export interface MessageRecipient {
+  applicationUid: string
+  candidateUid: string
+  fullName: string
+  /** Null when the candidate has no address — they cannot be messaged. */
+  email: string | null
+  avatarUrl: string | null
+  stage: ApplicationStage
+  stageLabel: string
+  /** When this applicant last received a message from the company; null if never. */
+  lastMessagedAt: ISODateString | null
+  messageCount: number
+}
+
+export interface SendMessageInput {
+  applicationUids: string[]
+  subject?: string | null
+  body: string
+}
+
+export interface SendMessageResponse {
+  messageUid: string
+  sent: MessageRecipient[]
+  skipped: { applicationUid: string; reason: 'NOT_FOUND' | 'NO_EMAIL' }[]
+}
+
+export interface BulkChangeStageResponse {
+  moved: ChangeStageResponse[]
+  skipped: { applicationUid: string; reason: 'NOT_FOUND' | 'INVALID_STATUS_TRANSITION'; stage: ApplicationStage | null }[]
+}
+
 export interface ChangeStageResponse {
   applicationUid: string
   stage: ApplicationStage

@@ -10,6 +10,8 @@ import type {
   ApplicationNote,
   ApplicationStage,
   CompanyApplicationParams,
+  MessageRecipient,
+  SendMessageInput,
 } from './types'
 
 export const applicationKeys = {
@@ -23,6 +25,9 @@ export const applicationKeys = {
   notes: (jobUid: string) => [...applicationKeys.all, 'notes', jobUid] as const,
   note: (applicationUid: string) => [...applicationKeys.all, 'note', applicationUid] as const,
   activity: (applicationUid: string) => [...applicationKeys.all, 'activity', applicationUid] as const,
+  audiences: () => [...applicationKeys.all, 'audience'] as const,
+  audience: (jobUid: string, stages: readonly ApplicationStage[]) =>
+    [...applicationKeys.audiences(), jobUid, [...stages].sort()] as const,
 }
 
 export const APPLICATIONS_PAGE_SIZE = 60
@@ -120,6 +125,66 @@ export function useSetApplicationStage() {
     mutationFn: ({ uid, stage, reason }: { uid: string; stage: ApplicationStage; reason?: string }) =>
       applicationsApi.setStage(uid, stage, reason),
     onMutate: ({ uid, stage }) => patchLists(uid, (row) => ({ ...row, stage, stageLabel: STAGE_LABELS[stage] })),
+    onError: (_e, _v, ctx) => ctx?.rollback(),
+    onSettled: invalidateAll,
+  }))
+}
+
+/**
+ * The same move for many applications. Shown at once for every selected row; the service judges
+ * each one, and the refetch afterwards puts back any it refused.
+ */
+export function useBulkSetApplicationStage() {
+  return useMutation(() => ({
+    mutationFn: ({ uids, stage, reason }: { uids: string[]; stage: ApplicationStage; reason?: string }) =>
+      applicationsApi.setStageBulk(uids, stage, reason),
+    onMutate: ({ uids, stage }) => {
+      const selected = new Set(uids)
+      return optimisticMany<ListCache>(applicationKeys.lists(), (cached) => {
+        const patchPage = (page: ApplicationListResponse): ApplicationListResponse => ({
+          ...page,
+          items: page.items.map((row) =>
+            selected.has(row.id) && row.allowedActions.includes(stage)
+              ? { ...row, stage, stageLabel: STAGE_LABELS[stage] }
+              : row,
+          ),
+        })
+        return !cached ? cached : 'pages' in cached ? { ...cached, pages: cached.pages.map(patchPage) } : patchPage(cached)
+      })
+    },
+    onError: (_e, _v, ctx) => ctx?.rollback(),
+    onSettled: invalidateAll,
+  }))
+}
+
+/** Who a message to these stages would reach, with who already received one. Read live. */
+export function useMessageAudience(
+  jobUid: () => string | null | undefined,
+  stages: () => ApplicationStage[],
+  enabled: () => boolean = () => true,
+) {
+  return useQuery(() => ({
+    queryKey: applicationKeys.audience(jobUid() ?? '', stages()),
+    queryFn: () => applicationsApi.messageAudience(jobUid()!, stages()),
+    enabled: !!jobUid() && enabled(),
+    staleTime: 0,
+    placeholderData: (prev) => prev,
+  }))
+}
+
+export function useSendCandidateMessage(jobUid: () => string | null | undefined) {
+  return useMutation(() => ({
+    mutationFn: (input: SendMessageInput) => applicationsApi.sendMessage(jobUid()!, input),
+    // The recipients read as "already messaged" straight away, in every open audience.
+    onMutate: ({ applicationUids }) => {
+      const sent = new Set(applicationUids)
+      const now = new Date().toISOString()
+      return optimisticMany<MessageRecipient[]>(applicationKeys.audiences(), (cached) =>
+        cached?.map((r) =>
+          sent.has(r.applicationUid) && r.email ? { ...r, lastMessagedAt: now, messageCount: r.messageCount + 1 } : r,
+        ),
+      )
+    },
     onError: (_e, _v, ctx) => ctx?.rollback(),
     onSettled: invalidateAll,
   }))
