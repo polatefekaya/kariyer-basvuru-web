@@ -1,6 +1,6 @@
 <!-- archy:begin -->
 ## Archy architecture snapshot
-Graph revision: 6
+Graph revision: 7
 
 ### Resolved layer conventions
 - None.
