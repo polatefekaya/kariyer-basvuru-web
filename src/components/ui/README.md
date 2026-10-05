@@ -220,9 +220,15 @@ account-type ids are `c`/`b`/`a`/`co`) and `?redirect_to=<absolute url>`. The hu
 url's hash (`#access_token=…&refresh_token=…`), which `initSession()` consumes and strips. Two things bite:
 the parameter is `redirect_to`, not `redirect`; and the hub drops a `redirect_to` whose origin is not in its
 own allow-list (`kariyer-auth-hub/src/types/config.ts`), silently, landing the user on the site's default page
-instead of back here. That list has `localhost:3000` and `localhost:5173`; `localhost:5199` is added but needs
-a hub deploy — until then, run `pnpm dev --port 3000` to complete a real login round-trip. The portal's
-deployed origin has to go on that list too.
+instead of back here. That list includes `localhost:3000`, `localhost:5173`, `localhost:5199`, and both
+`basvurular.kariyerzamani.com` and `kz-basvurular.kariyerzamani.com`.
+
+The site, auth hub and applicant panel use identical `src/lib/sharedAuthStorage.ts` adapters. Supabase
+stores the session in project-specific parent-domain cookies, chunked to stay below cookie size limits.
+On localhost the same host-only cookies are shared across ports (use the same hostname for all apps).
+Each app watches for shared cookie changes on focus and while visible, keeping open windows in sync.
+A shared logout marker prevents older per-origin localStorage sessions from restoring a signed-out user.
+Deploy all three apps together and configure the same Supabase project URL/key within each environment.
 
 One thing to know when testing in an automated/background Chrome tab: `IntersectionObserver` callbacks only run
 while the document is visible (`document.hidden === false`) — a hidden tab never loads the next page or the

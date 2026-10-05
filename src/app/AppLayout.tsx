@@ -1,6 +1,6 @@
 import { Match, Switch, type JSX } from 'solid-js'
 import { useLocation } from '@solidjs/router'
-import { Briefcase, LogOut, RefreshCw, Users } from 'lucide-solid'
+import { ArrowLeft, Briefcase, LogOut, RefreshCw, Users } from 'lucide-solid'
 import { KzLogo } from '@/components/brand/KzLogo'
 import {
   AppShell,
@@ -18,6 +18,7 @@ import { AppButton, AppEmptyState, AppLoadingBlock } from '@/components/ui'
 import { goToLogin, sessionState, signOut, useCurrentCompany, type PortalAccess } from '@/features/auth'
 import { companyDisplayName } from '@/features/companies'
 import config from '@/config/config'
+import { siteUrl } from '@/lib/site'
 
 const NAV = [
   {
@@ -141,6 +142,13 @@ export function AppLayout(props: { children?: JSX.Element }) {
                 <SidebarNav groups={NAV} />
               </SidebarContent>
               <SidebarFooter>
+                <SidebarNav
+                  groups={[
+                    {
+                      items: [{ label: 'Ana siteye geri dön', icon: ArrowLeft, href: siteUrl('/'), active: false }],
+                    },
+                  ]}
+                />
                 <SidebarUserCard
                   name={companyDisplayName(company.data!)}
                   subtitle={config.USE_MOCKS ? 'Örnek veri modu' : (company.data!.email ?? undefined)}
