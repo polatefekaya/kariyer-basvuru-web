@@ -1,10 +1,11 @@
 import { createStore } from 'solid-js/store'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { AUTH_STORAGE_KEY, supabase } from '@/lib/supabase'
 import { AUTH_LOGOUT_EVENT } from '@/lib/api'
 import type { AccountType } from '@/features/common/types'
 import config from '@/config/config'
-import { clearSessionCookie, readSessionCookie, writeSessionCookie } from '@/lib/cookieSession'
+import { clearSessionCookie } from '@/lib/cookieSession'
+import { sharedAuthStorage, watchSharedAuthSession } from '@/lib/sharedAuthStorage'
 
 export interface SessionState {
   /** Supabase session; null when signed out. */
@@ -112,38 +113,23 @@ export async function initSession() {
     }
   }
 
-  let { data } = await supabase.auth.getSession()
-
-  // If local storage has no active session, check the shared domain cookie (continuous auth across subdomains)
-  if (!data.session) {
-    const cookieSession = readSessionCookie()
-    if (cookieSession?.access_token && cookieSession?.refresh_token) {
-      await applyHandoff(cookieSession.access_token, cookieSession.refresh_token)
-      data = (await supabase.auth.getSession()).data
-    }
-  }
-
-  if (data.session) {
-    writeSessionCookie(data.session)
-  }
-
+  const { data } = await supabase.auth.getSession()
+  // Retire the unscoped duplicate; Supabase now reads the same project-specific storage as the site/hub.
+  clearSessionCookie()
   apply(data.session)
 
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) {
-      writeSessionCookie(session)
-    } else {
-      clearSessionCookie()
-    }
     apply(session)
   })
+  watchSharedAuthSession(supabase, AUTH_STORAGE_KEY, apply)
 
   window.addEventListener(AUTH_LOGOUT_EVENT, () => void signOut())
 }
 
 export async function signOut() {
   clearSessionCookie()
-  await supabase?.auth.signOut().catch(() => undefined)
+  await supabase?.auth.signOut({ scope: 'local' }).catch(() => undefined)
+  if (supabase) sharedAuthStorage.removeItem(AUTH_STORAGE_KEY)
   apply(null)
 }
 
