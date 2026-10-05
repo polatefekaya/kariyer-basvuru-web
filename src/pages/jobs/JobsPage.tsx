@@ -88,7 +88,7 @@ export function JobsPage() {
   }
 
   return (
-    <div class="@container mx-auto flex w-full max-w-screen-2xl flex-col gap-6">
+    <div class="@container flex w-full flex-col gap-6 sm:px-2 lg:px-6">
       <AppPageHeader
         variant="plain"
         title="İlanlar"
