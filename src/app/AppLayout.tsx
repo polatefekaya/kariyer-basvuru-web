@@ -18,7 +18,7 @@ import { AppButton, AppEmptyState, AppLoadingBlock } from '@/components/ui'
 import { goToLogin, sessionState, signOut, useCurrentCompany, type PortalAccess } from '@/features/auth'
 import { companyDisplayName } from '@/features/companies'
 import config from '@/config/config'
-import { siteUrl } from '@/lib/site'
+import { companyJobsPath, siteUrl } from '@/lib/site'
 
 const NAV = [
   {
@@ -145,7 +145,14 @@ export function AppLayout(props: { children?: JSX.Element }) {
                 <SidebarNav
                   groups={[
                     {
-                      items: [{ label: 'Ana siteye geri dön', icon: ArrowLeft, href: siteUrl('/'), active: false }],
+                      items: [
+                        {
+                          label: 'Ana siteye geri dön',
+                          icon: ArrowLeft,
+                          href: siteUrl(companyJobsPath(company.data!.uid)),
+                          active: false,
+                        },
+                      ],
                     },
                   ]}
                 />
