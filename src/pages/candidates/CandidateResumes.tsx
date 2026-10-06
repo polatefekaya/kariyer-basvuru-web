@@ -20,6 +20,7 @@ import {
 } from '@/features/resumes'
 import { formatDate, formatRelative } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { ApiError } from '@/lib/api'
 
 /** Untitled-rule section, no icons — the CV's own headings carry the meaning. */
 function Section(props: { title: string; children: JSX.Element }) {
@@ -138,7 +139,12 @@ function ResumeDetailView(props: { id: number; candidateUid: string }) {
                   onClick={() =>
                     unlock.mutate(props.id, {
                       onSuccess: () => toast.success('Özgeçmiş açıldı'),
-                      onError: () => toast.error('Özgeçmiş açılamadı'),
+                      onError: (error) =>
+                        toast.error(
+                          error instanceof ApiError && error.status === 402
+                            ? 'CV görüntüleme hakkınız yetersiz. Yeni bir paket satın alarak devam edebilirsiniz.'
+                            : 'Özgeçmiş açılamadı. Lütfen tekrar deneyin.',
+                        ),
                     })
                   }
                 >

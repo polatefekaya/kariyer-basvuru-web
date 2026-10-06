@@ -20,9 +20,8 @@ const realCandidatesApi = {
   byUsername: (username: string, resumeId?: number | null) =>
     profile(`/employee/username/${encodeURIComponent(username)}${resumeId ? `/${resumeId}` : ''}`),
 
-  /** View-tracking (counts toward the candidate's monthly stats and the company's CV-view rights). Fire-and-forget. */
+  /** Public-profile analytics. A failed tracking ping must not block reading the profile. */
   trackProfileView: (uid: string) => api.post<unknown>(`/employee/${uid}/track-profile-view`).catch(() => undefined),
-  trackCvView: (resumeId: number) => api.post<unknown>(`/employee/${resumeId}/track-cv-view`).catch(() => undefined),
 }
 
 /** Swapped for the in-memory mock when `config.USE_MOCKS`. */

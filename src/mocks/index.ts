@@ -268,10 +268,12 @@ export const mockCandidatesApi = {
     return mockCandidateProfile(`${username}-employee`)
   },
   trackProfileView: async () => undefined,
-  trackCvView: async () => undefined,
 }
 
 export const mockResumesApi = {
+  unlock: async (_id: number): Promise<void> => {
+    await delay(250)
+  },
   listByEmployee: async (employeeUid: string): Promise<Resume[]> => {
     await delay(250)
     const list = mockResumes(employeeUid)
