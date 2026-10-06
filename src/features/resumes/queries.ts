@@ -1,6 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/solid-query'
 import { queryClient } from '@/lib/query'
-import { candidatesApi } from '@/features/candidates'
 import { resumesApi } from './api'
 
 export const resumeKeys = {
@@ -44,10 +43,13 @@ export function useProfileReferences(employeeUid: () => string | null | undefine
  */
 export function useUnlockResume(candidateUid?: () => string | null | undefined) {
   return useMutation(() => ({
-    mutationFn: (resumeId: number) => candidatesApi.trackCvView(resumeId),
-    onSettled: (_d, _e, resumeId) => {
-      void queryClient.invalidateQueries({ queryKey: resumeKeys.detail(resumeId) })
-      if (candidateUid?.()) void queryClient.invalidateQueries({ queryKey: ['candidates'] })
+    mutationFn: (resumeId: number) => resumesApi.unlock(resumeId),
+    onSuccess: async () => {
+      // Keep the button pending until the CV and cached candidate identity have refreshed.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: resumeKeys.all }),
+        ...(candidateUid?.() ? [queryClient.invalidateQueries({ queryKey: ['candidates'] })] : []),
+      ])
     },
   }))
 }

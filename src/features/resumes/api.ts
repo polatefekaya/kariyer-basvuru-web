@@ -18,6 +18,13 @@ const realResumesApi = {
     api.get<Resume[] | { data?: Resume[] }>(`/resume/employee/${employeeUid}`).then(asList),
   /** `GET /resume/:id` — one CV with all its sections; comes back redacted unless unlocked. */
   get: (id: number) => api.get<ResumeDetail>(`/resume/${id}`),
+  /** Paid unlock, not a tracking ping: failures must reach the caller. */
+  unlock: async (id: number): Promise<void> => {
+    await api.data.post(`/employee/${id}/track-cv-view`, {
+      consume_right: true,
+      view_source: 'applications',
+    })
+  },
   /** `GET /profile_reference/:employee_uid` — every reference; the CV's `refs` pick which ones show. */
   references: (employeeUid: string) =>
     api.data.get<ProfileReference[]>(`/profile_reference/${employeeUid}`).catch(() => [] as ProfileReference[]),
